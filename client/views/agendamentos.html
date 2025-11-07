@@ -20,7 +20,7 @@
         <h1><i class="fas fa-calendar-alt"></i> Agendamentos</h1>
         <p class="header-subtitle">Gerencie suas consultas de forma eficiente</p>
       </div>
-      <button id="novoAgendamentoBtn" class="btn-primary">
+      <button id="novoAgendamentoBtn" class="btn-primary" aria-label="Criar novo agendamento">
         <i class="fas fa-plus"></i> Novo Agendamento
       </button>
     </div>
@@ -29,8 +29,8 @@
     <div class="filters-section">
       <div class="filter-group">
         <label for="filtroStatus">Status</label>
-        <select id="filtroStatus" class="filter-select">
-          <option value="">Todos</option>
+        <select id="filtroStatus" class="filter-select" aria-label="Filtrar por status">
+          <option value="">Todos os status</option>
           <option value="agendada">Agendada</option>
           <option value="confirmada">Confirmada</option>
           <option value="realizada">Realizada</option>
@@ -39,17 +39,17 @@
       </div>
       <div class="filter-group">
         <label for="filtroDataInicio">Data Início</label>
-        <input type="date" id="filtroDataInicio" class="filter-input">
+        <input type="date" id="filtroDataInicio" class="filter-input" aria-label="Data de início do filtro">
       </div>
       <div class="filter-group">
         <label for="filtroDataFim">Data Fim</label>
-        <input type="date" id="filtroDataFim" class="filter-input">
+        <input type="date" id="filtroDataFim" class="filter-input" aria-label="Data de fim do filtro">
       </div>
       <div class="filter-group">
-        <button id="aplicarFiltrosBtn" class="btn-secondary">
+        <button id="aplicarFiltrosBtn" class="btn-secondary" type="button" aria-label="Aplicar filtros">
           <i class="fas fa-filter"></i> Aplicar
         </button>
-        <button id="limparFiltrosBtn" class="btn-secondary">
+        <button id="limparFiltrosBtn" class="btn-secondary" type="button" aria-label="Limpar filtros">
           <i class="fas fa-times"></i> Limpar
         </button>
       </div>
@@ -111,11 +111,11 @@
   </div>
 
   <!-- Modal Novo/Editar Agendamento -->
-  <div id="modalAgendamento" class="modal" style="display: none;">
+  <div id="modalAgendamento" class="modal" style="display: none;" role="dialog" aria-labelledby="modalTitulo" aria-modal="true">
     <div class="modal-content">
       <div class="modal-header">
         <h2 id="modalTitulo">Novo Agendamento</h2>
-        <button class="modal-close" id="fecharModal">
+        <button class="modal-close" id="fecharModal" aria-label="Fechar modal">
           <i class="fas fa-times"></i>
         </button>
       </div>
@@ -123,8 +123,8 @@
         <input type="hidden" id="agendamentoId">
         
         <div class="form-group">
-          <label for="pacienteId">Paciente *</label>
-          <select id="pacienteId" class="form-input" required>
+          <label for="pacienteId">Paciente <span style="color: #dc3545;">*</span></label>
+          <select id="pacienteId" class="form-input" required aria-required="true">
             <option value="">Selecione um paciente</option>
             <!-- Pacientes serão carregados via JavaScript -->
           </select>
@@ -132,18 +132,18 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label for="dataHora">Data e Hora *</label>
-            <input type="datetime-local" id="dataHora" class="form-input" required>
+            <label for="dataHora">Data e Hora <span style="color: #dc3545;">*</span></label>
+            <input type="datetime-local" id="dataHora" class="form-input" required aria-required="true">
           </div>
           <div class="form-group">
-            <label for="duracao">Duração (minutos) *</label>
-            <input type="number" id="duracao" class="form-input" value="30" min="15" step="15" required>
+            <label for="duracao">Duração (minutos) <span style="color: #dc3545;">*</span></label>
+            <input type="number" id="duracao" class="form-input" value="30" min="15" step="15" required aria-required="true">
           </div>
         </div>
 
         <div class="form-group">
-          <label for="tipoConsulta">Tipo de Consulta *</label>
-          <select id="tipoConsulta" class="form-input" required>
+          <label for="tipoConsulta">Tipo de Consulta <span style="color: #dc3545;">*</span></label>
+          <select id="tipoConsulta" class="form-input" required aria-required="true">
             <option value="presencial">Presencial</option>
             <option value="online">Online</option>
             <option value="domiciliar">Domiciliar</option>
@@ -151,50 +151,50 @@
         </div>
 
         <div class="form-group">
-          <label for="motivoConsulta">Motivo da Consulta *</label>
-          <textarea id="motivoConsulta" class="form-input" rows="3" required></textarea>
+          <label for="motivoConsulta">Motivo da Consulta <span style="color: #dc3545;">*</span></label>
+          <textarea id="motivoConsulta" class="form-input" rows="3" required aria-required="true" placeholder="Descreva o motivo da consulta"></textarea>
         </div>
 
         <div class="form-group">
           <label for="observacoes">Observações</label>
-          <textarea id="observacoes" class="form-input" rows="3"></textarea>
+          <textarea id="observacoes" class="form-input" rows="3" placeholder="Observações adicionais (opcional)"></textarea>
         </div>
 
         <!-- Campos condicionais para endereço (presencial/domiciliar) -->
         <div id="enderecoFields" style="display: none;">
-          <h3>Endereço</h3>
+          <h3 style="color: #002A42; margin-bottom: 16px; font-size: 18px; font-weight: 600;">Endereço</h3>
           <div class="form-row">
             <div class="form-group">
               <label for="enderecoCep">CEP</label>
-              <input type="text" id="enderecoCep" class="form-input">
+              <input type="text" id="enderecoCep" class="form-input" placeholder="00000-000" maxlength="9">
             </div>
             <div class="form-group">
               <label for="enderecoLogradouro">Logradouro</label>
-              <input type="text" id="enderecoLogradouro" class="form-input">
+              <input type="text" id="enderecoLogradouro" class="form-input" placeholder="Rua, Avenida, etc.">
             </div>
           </div>
           <div class="form-row">
             <div class="form-group">
               <label for="enderecoNumero">Número</label>
-              <input type="text" id="enderecoNumero" class="form-input">
+              <input type="text" id="enderecoNumero" class="form-input" placeholder="123">
             </div>
             <div class="form-group">
               <label for="enderecoComplemento">Complemento</label>
-              <input type="text" id="enderecoComplemento" class="form-input">
+              <input type="text" id="enderecoComplemento" class="form-input" placeholder="Apto, Sala, etc.">
             </div>
           </div>
           <div class="form-row">
             <div class="form-group">
               <label for="enderecoBairro">Bairro</label>
-              <input type="text" id="enderecoBairro" class="form-input">
+              <input type="text" id="enderecoBairro" class="form-input" placeholder="Nome do bairro">
             </div>
             <div class="form-group">
               <label for="enderecoCidade">Cidade</label>
-              <input type="text" id="enderecoCidade" class="form-input">
+              <input type="text" id="enderecoCidade" class="form-input" placeholder="Nome da cidade">
             </div>
             <div class="form-group">
-              <label for="enderecoEstado">Estado</label>
-              <input type="text" id="enderecoEstado" class="form-input" maxlength="2">
+              <label for="enderecoEstado">Estado (UF)</label>
+              <input type="text" id="enderecoEstado" class="form-input" placeholder="SP" maxlength="2" style="text-transform: uppercase;">
             </div>
           </div>
         </div>
@@ -203,24 +203,26 @@
         <div id="linkVideoFields" style="display: none;">
           <div class="form-group">
             <label for="linkVideochamada">Link da Videochamada</label>
-            <input type="url" id="linkVideochamada" class="form-input" placeholder="https://...">
+            <input type="url" id="linkVideochamada" class="form-input" placeholder="https://meet.google.com/xxx-xxxx-xxx ou outro link">
           </div>
         </div>
 
         <div class="modal-actions">
           <button type="button" id="cancelarFormBtn" class="btn-secondary">Cancelar</button>
-          <button type="submit" class="btn-primary">Salvar</button>
+          <button type="submit" class="btn-primary">
+            <i class="fas fa-save"></i> Salvar
+          </button>
         </div>
       </form>
     </div>
   </div>
 
   <!-- Modal Detalhes do Agendamento -->
-  <div id="modalDetalhes" class="modal" style="display: none;">
+  <div id="modalDetalhes" class="modal" style="display: none;" role="dialog" aria-labelledby="detalhesTitulo" aria-modal="true">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>Detalhes do Agendamento</h2>
-        <button class="modal-close" id="fecharModalDetalhes">
+        <h2 id="detalhesTitulo">Detalhes do Agendamento</h2>
+        <button class="modal-close" id="fecharModalDetalhes" aria-label="Fechar modal">
           <i class="fas fa-times"></i>
         </button>
       </div>
@@ -229,7 +231,9 @@
       </div>
       <div class="modal-actions">
         <button type="button" id="fecharDetalhesBtn" class="btn-secondary">Fechar</button>
-        <button type="button" id="editarDetalhesBtn" class="btn-primary">Editar</button>
+        <button type="button" id="editarDetalhesBtn" class="btn-primary">
+          <i class="fas fa-edit"></i> Editar
+        </button>
       </div>
     </div>
   </div>
