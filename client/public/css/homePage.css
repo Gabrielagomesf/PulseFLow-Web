@@ -970,6 +970,11 @@ body {
   width: 38px;
   height: 38px;
   transition: all 0.3s ease;
+  fill: rgba(255, 255, 255, 0.85);
+}
+
+.social-icons a:hover svg {
+  fill: white;
 }
 
 .footer-section {
