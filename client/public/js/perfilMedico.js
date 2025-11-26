@@ -1,4 +1,21 @@
+import { API_URL } from './config.js';
+import { initHeaderComponent } from './components/header.js';
+import { initSidebar } from './components/sidebar.js';
+
 document.addEventListener('DOMContentLoaded', function() {
+    initHeaderComponent({ title: 'Perfil do Médico' });
+    initSidebar('perfilmedico');
+
+    const toggleButton = document.querySelector('.menu-toggle');
+    const sidebar = document.querySelector('.sidebar');
+
+    if (toggleButton && sidebar) {
+        toggleButton.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+            toggleButton.classList.toggle('shifted');
+        });
+    }
+
     // Verificar se o usuário está autenticado
     const token = localStorage.getItem('token');
     if (!token) {
@@ -89,7 +106,6 @@ async function refreshToken() {
 
 async function carregarDadosMedico() {
     try {
-        const API_URL = window.API_URL || 'http://localhost:65432';
         const response = await fetch(`${API_URL}/api/usuarios/perfil`, {
             method: 'GET',
             headers: {
@@ -103,6 +119,11 @@ async function carregarDadosMedico() {
 
         const medico = await response.json();
         console.log('Dados recebidos da API:', medico);
+
+        // Atualiza o sidebar do médico (mesmo quando há paciente ativo, o nome do médico deve aparecer)
+        if (window.updateSidebarInfo) {
+          window.updateSidebarInfo(medico.nome, medico.areaAtuacao, medico.genero, medico.crm);
+        }
         
         // Formatar telefones em um objeto
         const telefones = {
@@ -167,8 +188,17 @@ async function carregarDadosMedico() {
         });
 
         // Carregar foto do perfil
+        const profileImage = document.getElementById('profileImage');
         if (medico.foto) {
-            document.getElementById('profileImage').src = medico.foto;
+            console.log('URL da foto recebida:', medico.foto);
+            profileImage.src = medico.foto;
+            profileImage.onerror = () => {
+                console.error('Erro ao carregar imagem:', medico.foto);
+                profileImage.src = '/client/public/assets/user_logo.png';
+            };
+        } else {
+            console.log('Nenhuma foto encontrada, usando imagem padrão');
+            profileImage.src = '/client/public/assets/user_logo.png';
         }
 
         // Limpar e recriar campos RQE
@@ -358,11 +388,11 @@ function preencherFormulario(user) {
         profileImage.src = user.foto;
         profileImage.onerror = () => {
             console.error('Erro ao carregar imagem:', user.foto);
-            profileImage.src = '../public/assets/user_logo.png';
+            profileImage.src = '/client/public/assets/user_logo.png';
         };
     } else {
         console.log('Nenhuma foto encontrada, usando imagem padrão');
-        profileImage.src = '../public/assets/user_logo.png';
+        profileImage.src = '/client/public/assets/user_logo.png';
     }
 }
 
@@ -422,7 +452,23 @@ async function alterarFoto() {
                 body: formData
             });
 
-            const data = await response.json();
+            // Tentar fazer parse do JSON, se falhar, mostrar erro mais claro
+            let data;
+            try {
+                const text = await response.text();
+                if (!text) {
+                    throw new Error('Resposta vazia do servidor');
+                }
+                // Verificar se começa com < (HTML) ou { (JSON)
+                if (text.trim().startsWith('<')) {
+                    console.error('Servidor retornou HTML em vez de JSON:', text.substring(0, 200));
+                    throw new Error('Erro: O servidor retornou uma página HTML em vez de JSON. Verifique se a rota está configurada corretamente.');
+                }
+                data = JSON.parse(text);
+            } catch (parseError) {
+                console.error('Erro ao fazer parse da resposta:', parseError);
+                throw new Error('Erro ao processar resposta do servidor. Verifique se a rota está configurada corretamente.');
+            }
 
             if (response.status === 401) {
                 // Token expirado, tenta refresh
@@ -436,12 +482,27 @@ async function alterarFoto() {
                     body: formData
                 });
 
-                if (!newResponse.ok) {
-                    const errorData = await newResponse.json();
-                    throw new Error(errorData.message || 'Erro ao atualizar foto');
+                // Tentar fazer parse do JSON, se falhar, mostrar erro mais claro
+                let newData;
+                try {
+                    const text = await newResponse.text();
+                    if (!text) {
+                        throw new Error('Resposta vazia do servidor');
+                    }
+                    // Verificar se começa com < (HTML) ou { (JSON)
+                    if (text.trim().startsWith('<')) {
+                        console.error('Servidor retornou HTML em vez de JSON:', text.substring(0, 200));
+                        throw new Error('Erro: O servidor retornou uma página HTML em vez de JSON. Verifique se a rota está configurada corretamente.');
+                    }
+                    newData = JSON.parse(text);
+                } catch (parseError) {
+                    console.error('Erro ao fazer parse da resposta:', parseError);
+                    throw new Error('Erro ao processar resposta do servidor. Verifique se a rota está configurada corretamente.');
                 }
 
-                const newData = await newResponse.json();
+                if (!newResponse.ok) {
+                    throw new Error(newData.message || 'Erro ao atualizar foto');
+                }
                 document.getElementById('profileImage').src = newData.fotoUrl;
                 return;
             }
@@ -538,7 +599,6 @@ async function salvarAlteracoes(event) {
         console.log('Dados a serem enviados:', dadosPerfil);
 
         // Fazer a requisição com JSON
-        const API_URL = window.API_URL || 'http://localhost:65432';
         const response = await fetch(`${API_URL}/api/usuarios/perfil`, {
             method: 'PUT',
             headers: {
@@ -556,46 +616,6 @@ async function salvarAlteracoes(event) {
             throw new Error(errorMessage);
         }
 
-        // Atualizar Firestore se disponível (para monitoramento em tempo real)
-        // Fazer de forma não-bloqueante (não esperar, apenas tentar)
-        if (window.firebaseDb && typeof firebase !== 'undefined') {
-            // Executar em background, não bloquear o fluxo
-            (async () => {
-                try {
-                    const token = localStorage.getItem('token');
-                    if (token) {
-                        const payload = JSON.parse(atob(token.split('.')[1]));
-                        const userId = payload._id || payload.id || payload.userId;
-                        
-                        if (userId) {
-                            // Usar os dados retornados ou montar objeto com os dados salvos
-                            const firestoreData = responseData.usuario || responseData || dadosPerfil;
-                            
-                            // Criar objeto de atualização
-                            const updateData = {
-                                ...firestoreData,
-                                updatedAt: typeof firebase !== 'undefined' && firebase.firestore 
-                                    ? firebase.firestore.FieldValue.serverTimestamp() 
-                                    : new Date()
-                            };
-                            
-                            // Tentar atualizar com timeout
-                            const updatePromise = window.firebaseDb.collection('medicos').doc(userId).set(updateData, { merge: true });
-                            const timeoutPromise = new Promise((_, reject) => 
-                                setTimeout(() => reject(new Error('Timeout')), 3000)
-                            );
-                            
-                            await Promise.race([updatePromise, timeoutPromise]);
-                            console.log('✅ Dados atualizados no Firestore');
-                        }
-                    }
-                } catch (firestoreError) {
-                    // Silenciar erros do Firestore - não é crítico, o polling vai detectar mudanças
-                    console.log('ℹ️ Firestore não disponível para atualização (usando polling)');
-                }
-            })();
-        }
-
         // Fechar popup de salvamento e mostrar sucesso
         Swal.close();
         Swal.fire({
@@ -607,6 +627,10 @@ async function salvarAlteracoes(event) {
 
         desabilitarEdicao();
         await carregarDadosMedico();
+
+        if (window.updateNotificationBadge) {
+          window.updateNotificationBadge();
+        }
 
     } catch (error) {
         console.error('Erro ao salvar:', error);

@@ -87,6 +87,7 @@ dist
 # Gatsby files
 .cache/
 
+
 # Storybook build outputs
 .out
 .storybook-out
@@ -111,8 +112,16 @@ temp/
 ehthumbs.db
 Thumbs.db
 
-# Uploads directory (if contains user uploads)
-uploads/
+# Firebase configuration files with API keys
+**/firebaseClient.js.bak
+**/firebase-config.js
+**/firebase-config.json
+
+# Environment files
+.env.local
+.env.production
+.env.staging
+.env.development
 
 # Build outputs
 build/

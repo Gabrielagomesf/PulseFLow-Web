@@ -4,6 +4,7 @@ import Paciente from '../models/Paciente.js';
 import ConexaoMedicoPaciente from '../models/ConexaoMedicoPaciente.js';
 import User from '../models/User.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
+import { authPacienteMiddleware } from '../middlewares/pacienteAuthMiddleware.js';
 
 const router = express.Router();
 
@@ -283,22 +284,37 @@ router.post('/:patientId/desconectar-medico', async (req, res) => {
   }
 });
 
-// Buscar paciente por CPF completo (usado no perfil)
-router.get('/perfil/:cpf', async (req, res) => {
-  const { cpf } = req.params;
-
+// Buscar paciente por CPF completo (usado no perfil) - verifica conexão ativa
+router.get('/perfil/:cpf', authMiddleware, async (req, res) => {
   try {
-    // Tentar buscar com CPF limpo primeiro
-    let paciente = await Paciente.findOne({ cpf: cpf.replace(/\D/g, '') });
+    const { cpf } = req.params;
+    const medicoId = req.user._id;
+
+    const cpfLimpo = cpf.replace(/\D/g, '');
     
-    // Se não encontrar, tentar com CPF formatado
+    let paciente = await Paciente.findOne({ cpf: cpfLimpo });
+    
     if (!paciente) {
-      const cpfFormatado = cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+      const cpfFormatado = cpfLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
       paciente = await Paciente.findOne({ cpf: cpfFormatado });
     }
 
     if (!paciente) {
       return res.status(404).json({ message: 'Paciente não encontrado' });
+    }
+
+    // Verificar conexão ativa
+    const conexaoAtiva = await ConexaoMedicoPaciente.findOne({
+      pacienteId: paciente._id,
+      medicoId: medicoId,
+      isActive: true
+    });
+
+    if (!conexaoAtiva) {
+      return res.status(403).json({ 
+        message: 'Acesso negado. Você não tem uma conexão ativa com este paciente. Por favor, solicite acesso novamente.',
+        codigo: 'CONEXAO_INATIVA'
+      });
     }
 
     res.json({
@@ -381,6 +397,20 @@ router.put('/perfil/:cpf', authMiddleware, async (req, res) => {
       return res.status(404).json({ message: 'Paciente não encontrado' });
     }
 
+    // Verificar conexão ativa
+    const conexaoAtiva = await ConexaoMedicoPaciente.findOne({
+      pacienteId: paciente._id,
+      medicoId: req.user._id,
+      isActive: true
+    });
+
+    if (!conexaoAtiva) {
+      return res.status(403).json({ 
+        message: 'Acesso negado. Você não tem uma conexão ativa com este paciente. Por favor, solicite acesso novamente.',
+        codigo: 'CONEXAO_INATIVA'
+      });
+    }
+
     // Atualizar campos permitidos
     const { nome, genero, nacionalidade, altura, peso, profissao, email, telefone, observacoes } = req.body;
 
@@ -420,6 +450,41 @@ router.put('/perfil/:cpf', authMiddleware, async (req, res) => {
     }
 
     await paciente.save();
+
+    try {
+      const Notification = (await import('../models/Notification.js')).default;
+      const mongoose = (await import('mongoose')).default;
+      
+      const notif = await Notification.create({
+        user: mongoose.Types.ObjectId.isValid(paciente._id) ? paciente._id : new mongoose.Types.ObjectId(paciente._id.toString()),
+        userModel: 'Paciente',
+        title: 'Dados do perfil alterados',
+        description: `Seus dados de perfil foram atualizados por ${req.user.nome || 'um médico'}. Verifique as alterações em seu perfil.`,
+        type: 'profile_update',
+        link: `/profile`,
+        unread: true
+      });
+
+      try {
+        const { sendNotificationToUser } = await import('../services/fcmService.js');
+        
+        await sendNotificationToUser(
+          paciente._id,
+          'Paciente',
+          'Dados do perfil alterados',
+          `Seus dados de perfil foram atualizados por ${req.user.nome || 'um médico'}. Verifique as alterações em seu perfil.`,
+          {
+            link: `/profile`,
+            type: 'profile_update',
+            notificationId: notif._id.toString()
+          }
+        );
+      } catch (fcmError) {
+        console.error('Erro ao enviar notificação push:', fcmError);
+      }
+    } catch (notifError) {
+      console.error('Erro ao criar notificação:', notifError);
+    }
 
     res.json({
       message: 'Perfil atualizado com sucesso',
@@ -473,6 +538,67 @@ router.get('/teste', async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ message: 'Erro interno do servidor', error: err.message });
+  }
+});
+
+router.post('/fcm-token', authPacienteMiddleware, async (req, res) => {
+  try {
+    const { fcmToken } = req.body;
+    const pacienteId = req.user._id;
+
+    if (!fcmToken) {
+      return res.status(400).json({ message: 'Token FCM não fornecido' });
+    }
+
+    const paciente = await Paciente.findByIdAndUpdate(
+      pacienteId,
+      { fcmToken: fcmToken },
+      { new: true }
+    );
+
+    if (!paciente) {
+      return res.status(404).json({ message: 'Paciente não encontrado' });
+    }
+
+    res.json({ message: 'Token FCM salvo com sucesso' });
+  } catch (error) {
+    console.error('Erro ao salvar token FCM:', error);
+    res.status(500).json({ message: 'Erro ao salvar token FCM', error: error.message });
+  }
+});
+
+router.get('/historico-acessos', authPacienteMiddleware, async (req, res) => {
+  try {
+    const pacienteId = req.user._id;
+
+    const historicoAcessos = await ConexaoMedicoPaciente.find({
+      pacienteId: pacienteId
+    })
+      .sort({ connectedAt: -1 })
+      .limit(100);
+
+    const acessosFormatados = historicoAcessos.map(acesso => ({
+      id: acesso._id,
+      medicoId: acesso.medicoId,
+      medicoNome: acesso.medicoNome,
+      medicoEspecialidade: acesso.medicoEspecialidade || 'Não informado',
+      dataHora: acesso.connectedAt ? acesso.connectedAt.toISOString() : null,
+      desconectadoEm: acesso.disconnectedAt ? acesso.disconnectedAt.toISOString() : null,
+      isActive: acesso.isActive,
+      duracao: acesso.disconnectedAt 
+        ? Math.floor((acesso.disconnectedAt - acesso.connectedAt) / 1000)
+        : acesso.isActive 
+          ? Math.floor((new Date() - acesso.connectedAt) / 1000)
+          : null
+    }));
+
+    res.json({
+      total: acessosFormatados.length,
+      acessos: acessosFormatados
+    });
+  } catch (error) {
+    console.error('Erro ao buscar histórico de acessos:', error);
+    res.status(500).json({ message: 'Erro ao buscar histórico de acessos', error: error.message });
   }
 });
 

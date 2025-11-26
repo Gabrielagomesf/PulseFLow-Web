@@ -1,5 +1,17 @@
+import { validateActivePatient, redirectToPatientSelection } from './utils/patientValidation.js';
+import { initHeaderComponent } from './components/header.js';
+import { initSidebar } from './components/sidebar.js';
+
 document.addEventListener('DOMContentLoaded', async () => {
-  const form = document.querySelector('form');
+  initHeaderComponent({ title: 'Registro Clínico' });
+  initSidebar('historicoeventoclinico');
+  const validation = validateActivePatient();
+  if (!validation.valid) {
+    redirectToPatientSelection(validation.error);
+    return;
+  }
+  
+  const form = document.querySelector('#registroForm');
   const token = localStorage.getItem('token');
 
   // Chamada da função que exibe Dr(a). Nome na sidebar
@@ -13,15 +25,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const paciente = JSON.parse(localStorage.getItem('pacienteSelecionado'));
-    if (!paciente || !paciente.cpf) {
-      alert('Paciente não selecionado. Por favor, selecione um paciente primeiro.');
-      window.location.href = '/selecao.html';
+    const validation = validateActivePatient();
+    if (!validation.valid) {
+      redirectToPatientSelection(validation.error);
       return;
     }
+    
+    const paciente = validation.paciente;
 
     const formData = {
-      cpfPaciente: paciente.cpf,
+      cpfPaciente: validation.cpf,
       titulo: document.getElementById('titulo').value,
       dataHora: document.getElementById('dataHora').value,
       tipoEvento: document.getElementById('tipoEvento').value,

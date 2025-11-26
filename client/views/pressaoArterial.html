@@ -5,9 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PulseFlow | Monitoramento de Pressão Arterial</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/client/public/css/perfilPaciente.css">
+  <link rel="stylesheet" href="/client/public/css/sidebar.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link rel="stylesheet" href="/client/public/css/pressaoArterial.css">
   <link rel="icon" type="image/png" href="/client/public/assets/logoMiniatura.png">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
+  <link rel="stylesheet" href="/client/public/css/dark-theme.css"/>
+  <script src="/client/public/js/theme.js"></script>
 </head>
 <body>
   <div id="header-component"></div>
@@ -15,14 +20,18 @@
   
   <div class="container">
     <main class="content">
-      <!-- Card Principal da Pressão Arterial -->
-      <section class="pressao-card">
-        <div class="card-header">
-          <div class="title-section">
-            <h1 class="page-title">Monitoramento de Pressão Arterial</h1>
-            <p class="page-subtitle">Acompanhamento dos níveis pressóricos do paciente</p>
+      <!-- Header da Página -->
+      <section class="page-header">
+        <div class="header-content">
+          <div class="header-text">
+            <h1>Gráfico de Pressão Arterial</h1>
+            <p>Níveis sistólicos e diastólicos ao longo do tempo</p>
           </div>
-          <div class="stats-section">
+        </div>
+      </section>
+
+      <!-- Estatísticas -->
+      <div class="stats-section">
             <div class="stat-card">
               <div class="stat-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -75,30 +84,17 @@
               </div>
             </div>
           </div>
-        </div>
 
         <!-- Gráfico de Pressão Arterial -->
         <div class="chart-section">
           <div class="chart-header">
-            <div class="chart-title">
-              <div class="title-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M3 3v18h18"></path>
-                  <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"></path>
-                </svg>
-              </div>
-              <div class="title-text">
-                <h2>Gráfico de Pressão Arterial</h2>
-                <p>Níveis sistólicos e diastólicos ao longo do tempo</p>
-              </div>
-            </div>
             <div class="month-selector">
               <button class="arrow-btn" data-direction="prev">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M15 18l-6-6 6-6"></path>
                 </svg>
               </button>
-              <span class="month-label">Abril • 2025</span>
+              <span class="month-label">Novembro • 2025</span>
               <button class="arrow-btn" data-direction="next">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M9 18l6-6-6-6"></path>
@@ -107,15 +103,17 @@
             </div>
           </div>
           
-          <div id="no-data-msg-pressao" class="no-data-message">
-            <div class="no-data-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 3v18h18"></path>
-                <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"></path>
-              </svg>
+          <div id="no-data-msg-pressao" class="empty-state-pressao" style="display: none;">
+            <div class="empty-state-content">
+              <div class="empty-state-icon-wrapper">
+                <div class="empty-state-dot"></div>
+                <div class="empty-state-icon-circle">
+                  <i class="fas fa-heartbeat"></i>
+                </div>
+              </div>
+              <h3>Nenhum dado encontrado</h3>
+              <p>Não há registros de pressão arterial para este mês.</p>
             </div>
-            <h3>Nenhum dado encontrado</h3>
-            <p>Não há registros de pressão arterial para este mês.</p>
           </div>
           
           <div class="chart-container">
@@ -173,14 +171,57 @@
             </a>
           </div>
         </div>
-      </section>
     </main>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
-  <script ></script>
-  <script ></script>
-  <script src="/client/public/js/pressaoArterial.js"></script>
+  <script type="module">
+    import { initHeaderComponent } from '/client/public/js/components/header.js';
+    import { initSidebar } from '/client/public/js/components/sidebar.js';
+    import { API_URL } from '/client/public/js/config.js';
+
+    initHeaderComponent({ title: 'Monitoramento de Pressão Arterial' });
+    initSidebar('pressaoarterial');
+
+    const toggleButton = document.querySelector('.menu-toggle');
+    const sidebar = document.querySelector('.sidebar');
+
+    if (toggleButton && sidebar) {
+      toggleButton.addEventListener('click', () => {
+        sidebar.classList.toggle('active');
+        toggleButton.classList.toggle('shifted');
+      });
+    }
+
+    // Carregar dados do médico para atualizar o sidebar
+    async function loadDoctorInfo() {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const response = await fetch(`${API_URL}/api/usuarios/perfil`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) return;
+
+        const medico = await response.json();
+        
+        // Atualiza o sidebar do médico (mesmo quando há paciente ativo, o nome do médico deve aparecer)
+        if (window.updateSidebarInfo) {
+          window.updateSidebarInfo(medico.nome, medico.areaAtuacao || 'Acompanhamento Integrado', medico.genero, medico.crm);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados do médico:', error);
+      }
+    }
+
+    loadDoctorInfo();
+  </script>
+  <script type="module" src="/client/public/js/pressaoArterial.js"></script>
 </body>
 </html>

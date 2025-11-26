@@ -1,6 +1,7 @@
 import express from 'express';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 import User from '../models/User.js';
+import Notification from '../models/Notification.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -169,6 +170,38 @@ router.put('/', authMiddleware, async (req, res) => {
         await medico.save();
         console.log('Alterações salvas com sucesso');
 
+        try {
+            const notif = await Notification.create({
+                user: req.user._id,
+                title: 'Perfil atualizado',
+                description: 'Seus dados do perfil foram atualizados com sucesso.',
+                type: 'updates',
+                link: '/client/views/perfilMedico.html',
+                unread: true
+            });
+            console.log('Notificação criada com sucesso');
+
+            try {
+                const { sendNotificationToUser } = await import('../services/fcmService.js');
+                
+                await sendNotificationToUser(
+                    req.user._id,
+                    'User',
+                    'Perfil atualizado',
+                    'Seus dados do perfil foram atualizados com sucesso.',
+                    {
+                        link: '/client/views/perfilMedico.html',
+                        type: 'profile_update',
+                        notificationId: notif._id.toString()
+                    }
+                );
+            } catch (fcmError) {
+                console.error('Erro ao enviar notificação push:', fcmError);
+            }
+        } catch (notifError) {
+            console.error('Erro ao criar notificação:', notifError);
+        }
+
         // Retorna os dados atualizados formatados
         const medicoAtualizado = medico.toObject();
         
@@ -269,6 +302,20 @@ router.post('/foto', authMiddleware, async (req, res) => {
             medico.foto = fotoUrl;
             await medico.save();
             console.log('Foto atualizada com sucesso');
+
+            try {
+                await Notification.create({
+                    user: req.user._id,
+                    title: 'Foto de perfil atualizada',
+                    description: 'Sua foto de perfil foi atualizada com sucesso.',
+                    type: 'updates',
+                    link: '/client/views/perfilMedico.html',
+                    unread: true
+                });
+                console.log('Notificação de foto criada com sucesso');
+            } catch (notifError) {
+                console.error('Erro ao criar notificação de foto:', notifError);
+            }
 
             res.json({ 
                 message: 'Foto atualizada com sucesso',

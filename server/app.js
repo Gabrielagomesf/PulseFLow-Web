@@ -16,6 +16,8 @@ import anexoExameRoutes from './routes/anexoExameRoutes.js';
 import hormonalRoutes from './routes/hormonalRoutes.js'; 
 import diabetesRoutes from './routes/diabetesRoutes.js'; 
 import pressaoArterialRoutes from './routes/pressaoArterialRoutes.js';
+import batimentosCardiacosRoutes from './routes/batimentosCardiacosRoutes.js';
+import passosRoutes from './routes/passosRoutes.js';
 import anotacaoRoutes from './routes/anotacaoRoutes.js';
 import criseGastriteRoutes from './routes/gastriteRoutes.js';
 import cicloRoutes from './routes/cicloRoutes.js';
@@ -25,7 +27,11 @@ import perfilMedicoRoutes from './routes/perfilMedicoRoutes.js';
 import accessCodeRoutes from './routes/accessCodeRoutes.js';
 import geminiRoutes from './routes/geminiRoutes.js';
 import agendamentoRoutes from './routes/agendamentoRoutes.js';
-
+import agendamentoPacienteRoutes from './routes/agendamentoPacienteRoutes.js';
+import horarioDisponibilidadeRoutes from './routes/horarioDisponibilidadeRoutes.js';
+import notificacaoRoutes from './routes/notificacaoRoutes.js';
+import notificacaoPacienteRoutes from './routes/notificacaoPacienteRoutes.js';
+import firebaseRoutes from './routes/firebaseRoutes.js';
 
 
 // Carregar variáveis de ambiente
@@ -67,7 +73,7 @@ if (!process.env.GEMINI_API_KEY) {
 // Configuração do CORS
 const corsOptions = {
   origin: function (origin, callback) {
-    // Permitir requisições sem origem (apps mobile, Postman, etc)
+    // Permitir requisições sem origem (apps mobile, Postman, Service Workers, etc)
     if (!origin) return callback(null, true);
     
     // Lista de origens permitidas
@@ -75,6 +81,7 @@ const corsOptions = {
       'http://localhost:3000',
       'http://127.0.0.1:3000',
       'http://127.0.0.1:65432',
+      'http://localhost:65432',
       'http://localhost:5500',
       'http://127.0.0.1:5501',
       'http://localhost:5501',
@@ -84,16 +91,14 @@ const corsOptions = {
       'http://pulseflow-vii.onrender.com'
     ];
     
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
-      callback(null, true);
-    } else {
-      // Para desenvolvimento, permitir todas as origens
-      callback(null, true);
-    }
+    // Para desenvolvimento, permitir todas as origens
+    callback(null, true);
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 };
 
 // Middlewares
@@ -127,6 +132,11 @@ app.get('/client/views/agendamentos.html', (req, res) => {
   res.sendFile(path.join(clientPath, 'views', 'agendamentos.html'));
 });
 
+// Rota para horários de disponibilidade
+app.get('/client/views/horariosDisponibilidade.html', (req, res) => {
+  res.sendFile(path.join(clientPath, 'views', 'horariosDisponibilidade.html'));
+});
+
 // Rotas da aplicação
 app.use('/api/auth', authRoutes);
 app.use('/api/usuarios', userRoutes); // ✅ NOVA ROTA ATIVADA
@@ -135,6 +145,8 @@ app.use('/api/paciente-auth', pacienteAuthRoutes);
 app.use('/api/pacientes', pacienteRoutes);
 app.use('/api/insonia', insoniaRoutes);
 app.use('/api/pressaoArterial', pressaoArterialRoutes);
+app.use('/api/batimentosCardiacos', batimentosCardiacosRoutes);
+app.use('/api/passos', passosRoutes);
 app.use('/api/anexoExame', anexoExameRoutes);
 app.use('/api/anotacoes', anotacaoRoutes);
 app.use('/api/hormonal', hormonalRoutes);
@@ -146,6 +158,11 @@ app.use('/api/eventos-clinicos', eventoClinicoRoutes);
 app.use('/api/access-code', accessCodeRoutes);
 app.use('/api/gemini', geminiRoutes);
 app.use('/api/agendamentos', agendamentoRoutes);
+app.use('/api/agendamentos-paciente', agendamentoPacienteRoutes);
+app.use('/api/horarios-disponibilidade', horarioDisponibilidadeRoutes);
+app.use('/api/notificacoes', notificacaoRoutes);
+app.use('/api/notificacoes-paciente', notificacaoPacienteRoutes);
+app.use('/api/firebase', firebaseRoutes);
 
 
 // Middleware de erro

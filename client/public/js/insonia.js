@@ -2,14 +2,12 @@ const API_URL = window.API_URL || 'http://localhost:65432';
 
 document.addEventListener("DOMContentLoaded", function () {
   const canvasHoras = document.getElementById("chartHorasSono");
-  const canvasQualidade = document.getElementById("chartQualidadeSono");
   
-  if (!canvasHoras || !canvasQualidade) {
+  if (!canvasHoras) {
     return;
   }
   
   const ctxHoras = canvasHoras.getContext("2d");
-  const ctxQualidade = canvasQualidade.getContext("2d");
 
   const months = [
     "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -19,8 +17,8 @@ document.addEventListener("DOMContentLoaded", function () {
   // Não precisamos mais gerenciar o toggle aqui
   
   const today = new Date();
-  let currentMonthIndex = 8; // Setembro (0-indexed)
-  const currentYear = 2025;
+  let currentMonthIndex = today.getMonth(); // Mês atual (0-indexed)
+  let currentYear = today.getFullYear(); // Ano atual
 
   function mostrarErro(mensagem) {
     const errorDiv = document.createElement('div');
@@ -68,6 +66,16 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       });
 
+      try {
+        const { handleApiError } = await import('./utils/patientValidation.js');
+        const handled = await handleApiError(response);
+        if (handled) {
+          return;
+        }
+      } catch (importError) {
+        console.error('Erro ao importar handleApiError:', importError);
+      }
+
       if (!response.ok) {
         mostrarErro("Erro ao buscar dados de sono!");
         return;
@@ -89,8 +97,8 @@ document.addEventListener("DOMContentLoaded", function () {
       datasets: [{
         label: "Horas de Sono",
         data: [],
-        borderColor: "#4CAF50",
-        backgroundColor: "rgba(76, 175, 80, 0.1)",
+        borderColor: "#3b82f6",
+        backgroundColor: "rgba(59, 130, 246, 0.1)",
         tension: 0.3,
         pointRadius: 5,
         pointHoverRadius: 7,
@@ -121,10 +129,7 @@ document.addEventListener("DOMContentLoaded", function () {
             label: () => '',
             afterBody: context => {
               const valor = context[0].parsed.y;
-              return [
-                `Horas de sono: ${valor}h`,
-                `Classificação: ${classificarSono(valor)}`
-              ];
+              return `Horas de sono: ${valor}h`;
             }
           }
         }
@@ -150,58 +155,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  // Gráfico de Qualidade do Sono (placeholder - não temos dados de qualidade)
-  const chartQualidadeSono = new Chart(ctxQualidade, {
-    type: 'line',
-    data: {
-      labels: [],
-      datasets: [{
-        label: "Qualidade do Sono",
-        data: [],
-        borderColor: "#FF9800",
-        backgroundColor: "rgba(255, 152, 0, 0.1)",
-        tension: 0.3,
-        pointRadius: 5,
-        pointHoverRadius: 7,
-        fill: true,
-        spanGaps: true
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: {
-        duration: 1200,
-        easing: 'easeOutQuart'
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          displayColors: false,
-          callbacks: {
-            title: context => `Dia ${context[0].parsed.x}`,
-            label: () => '',
-            afterBody: context => {
-              return ['Dados de qualidade não disponíveis'];
-            }
-          }
-        }
-      },
-      scales: {
-        x: {
-          type: 'linear',
-          title: { display: true, text: 'Dia do Mês' },
-          ticks: { precision: 0 }
-        },
-        y: {
-          min: 0,
-          max: 10,
-          title: { display: true, text: 'Qualidade (1-10)' },
-          ticks: { stepSize: 1 }
-        }
-      }
-    }
-  });
 
   // Buscar dados da API
   async function fetchInsoniaData(month, year) {
@@ -254,20 +207,31 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function updateCharts(data) {
+    const noDataMsg = document.getElementById('no-data-msg-horas');
+    const chartContainer = document.querySelector('.chart-container');
+    
     if (!data || !data.data || data.data.length === 0) {
-      document.getElementById('no-data-msg-horas').style.display = 'block';
-      document.getElementById('no-data-msg-qualidade').style.display = 'block';
+      // Esconder apenas o container do gráfico quando não houver dados
+      if (chartContainer) {
+        chartContainer.style.display = 'none';
+      }
+      if (noDataMsg) {
+        noDataMsg.style.display = 'flex';
+      }
+      // Limpar dados do gráfico
       chartHorasSono.data.labels = [];
       chartHorasSono.data.datasets[0].data = [];
-      chartQualidadeSono.data.labels = [];
-      chartQualidadeSono.data.datasets[0].data = [];
       chartHorasSono.update();
-      chartQualidadeSono.update();
       return;
     }
 
-    document.getElementById('no-data-msg-horas').style.display = 'none';
-    document.getElementById('no-data-msg-qualidade').style.display = 'none';
+    // Mostrar o container do gráfico quando houver dados
+    if (chartContainer) {
+      chartContainer.style.display = 'flex';
+    }
+    if (noDataMsg) {
+      noDataMsg.style.display = 'none';
+    }
 
     // Extrair dias e valores de sono
     const dias = data.data.map(d => d.dia);
@@ -282,11 +246,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Atualizar o gráfico
     chartHorasSono.update();
-    
-    // Gráfico de qualidade permanece vazio (sem dados)
-    chartQualidadeSono.data.labels = [];
-    chartQualidadeSono.data.datasets[0].data = [];
-    chartQualidadeSono.update();
   }
 
   function classificarSono(horas) {
@@ -323,6 +282,12 @@ document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll(".month-label").forEach(el => {
     el.textContent = `${months[currentMonthIndex]} • ${currentYear}`;
   });
+
+  // Inicializar estado: ocultar gráfico até que dados sejam carregados
+  const chartContainer = document.querySelector('.chart-container');
+  if (chartContainer) {
+    chartContainer.style.display = 'none';
+  }
 
   loadChartData();
   atualizarEstatisticas();
@@ -367,17 +332,9 @@ async function atualizarEstatisticas() {
       // Atualizar estatísticas
       document.getElementById('totalRecordsCount').textContent = data.data.length;
       
-      const horasSono = data.data.map(d => parseFloat(d.horasSono || 0)).filter(h => h > 0);
+      const horasSono = data.data.map(d => parseFloat(d.horasSono || d.valor || 0)).filter(h => h > 0);
       const mediaHoras = horasSono.length > 0 ? horasSono.reduce((sum, val) => sum + val, 0) / horasSono.length : 0;
       document.getElementById('avgSleepHours').textContent = mediaHoras.toFixed(1);
-      
-      const qualidades = data.data.map(d => parseFloat(d.qualidadeSono || 0)).filter(q => q > 0);
-      const mediaQualidade = qualidades.length > 0 ? qualidades.reduce((sum, val) => sum + val, 0) / qualidades.length : 0;
-      document.getElementById('avgSleepQuality').textContent = mediaQualidade.toFixed(1);
-      
-      // Contar noites com qualidade boa (>= 4)
-      const boasNoites = qualidades.filter(q => q >= 4).length;
-      document.getElementById('goodSleepCount').textContent = boasNoites;
     }
   } catch (error) {
     console.error('Erro ao atualizar estatísticas:', error);
